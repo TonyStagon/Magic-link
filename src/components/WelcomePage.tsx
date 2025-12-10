@@ -261,16 +261,29 @@ export default function WelcomePage() {
   const handleOptionToggle = (questionId: number, option: string) => {
     const current = selections[questionId] || [];
     const isSelected = current.includes(option);
+    const maxSelections = SURVEY_QUESTIONS.find((q) => q.id === questionId)!.maxSelections;
     let updated: string[];
-    if (isSelected) {
-      updated = current.filter((item) => item !== option);
-    } else {
-      if (current.length >= SURVEY_QUESTIONS.find((q) => q.id === questionId)!.maxSelections) {
-        // Limit reached, maybe show a toast or ignore
-        return;
+
+    if (maxSelections === 1) {
+      // Single‑select: replace or toggle off
+      if (isSelected) {
+        updated = []; // deselect
+      } else {
+        updated = [option]; // select this one (replace any previous)
       }
-      updated = [...current, option];
+    } else {
+      // Multi‑select with limit
+      if (isSelected) {
+        updated = current.filter((item) => item !== option);
+      } else {
+        if (current.length >= maxSelections) {
+          // Limit reached, ignore
+          return;
+        }
+        updated = [...current, option];
+      }
     }
+
     setSelections({ ...selections, [questionId]: updated });
   };
 
