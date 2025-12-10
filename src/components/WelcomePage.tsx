@@ -75,9 +75,6 @@ const SURVEY_QUESTIONS: SurveyQuestion[] = [
     options: [
       'Male',
       'Female',
-      'Non-binary',
-      'Other',
-      'Prefer not to say',
     ],
     maxSelections: 1,
   },
@@ -177,6 +174,7 @@ export default function WelcomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [surveyStep, setSurveyStep] = useState<number>(0); // 0 = welcome, 1-3 = questions, 4 = completed
+  const [token, setToken] = useState<string | null>(null);
   const [selections, setSelections] = useState<Record<number, string[]>>({
     1: [],
     2: [],
@@ -193,10 +191,10 @@ export default function WelcomePage() {
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token');
+    const urlToken = urlParams.get('token');
 
     // Temporary bypass: if no token, set a mock user for development
-    if (!token) {
+    if (!urlToken) {
       const mockUser: MagicLinkUser = {
         id: 'mock-user-id-123',
         email: 'demo@example.com',
@@ -208,11 +206,13 @@ export default function WelcomePage() {
         updated_at: new Date().toISOString(),
       };
       setUser(mockUser);
+      setToken('mock-token');
       setLoading(false);
       return;
     }
 
-    fetchUser(token);
+    setToken(urlToken);
+    fetchUser(urlToken);
   }, []);
 
   const fetchUser = async (token: string) => {
@@ -254,6 +254,19 @@ export default function WelcomePage() {
     }
   };
 
+  const submitSurvey = async () => {
+    // Placeholder for backend submission - token is now available
+    if (!token) {
+      console.warn('No token available for survey submission');
+      return;
+    }
+    console.log('Submitting survey with token:', token);
+    console.log('Selections:', selections);
+    // TODO: Send selections and token to backend
+    // Example: await supabase.from('survey_responses').insert({ token, selections, user_id: user?.id });
+    // The token can be used for authentication or to associate responses with the user.
+  };
+
   const handleStart = () => {
     setSurveyStep(1);
   };
@@ -292,8 +305,7 @@ export default function WelcomePage() {
       setSurveyStep(surveyStep + 1);
     } else {
       // Submit survey
-      console.log('Submitting survey:', selections);
-      // Here you would send selections to Supabase
+      submitSurvey();
       setSurveyStep(SURVEY_QUESTIONS.length + 1); // completion
     }
   };
@@ -496,19 +508,33 @@ export default function WelcomePage() {
               <p className="text-gray-700 mb-6 max-w-2xl mx-auto">
                 To customize your experience, we'll ask you a few quick questions about your interests and learning preferences.
               </p>
+              <div className="mb-8 max-w-md mx-auto">
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                  <p className="text-sm font-medium text-blue-800 mb-2">Your access token:</p>
+                  <div className="flex items-center justify-between">
+                    <code className="text-blue-900 bg-blue-100 px-3 py-2 rounded-lg font-mono text-sm truncate flex-1 mr-4">
+                      {token || 'No token available'}
+                    </code>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(token || '')}
+                      disabled={!token}
+                      className="text-blue-600 hover:text-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed text-sm font-medium"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                  <p className="text-xs text-blue-600 mt-2">
+                    This token will be used to personalize your survey and fetch your data from the backend.
+                  </p>
+                </div>
+              </div>
               <button
                 onClick={handleStart}
-                className="group relative inline-flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-12 py-5 rounded-full text-xl font-semibold shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300 overflow-hidden"
+                className="group relative flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-12 py-5 rounded-full text-xl font-semibold shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300 overflow-hidden mx-auto"
               >
                 <span className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
                 <span className="relative">Start Survey</span>
                 <Target className="w-6 h-6 relative group-hover:rotate-90 transition-transform duration-300" />
-              </button>
-              <button
-                onClick={handleSkip}
-                className="mt-4 text-gray-600 hover:text-gray-800 underline transition-colors"
-              >
-                Skip survey and go straight to learning
               </button>
             </div>
           </div>
