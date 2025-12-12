@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
-import { BookOpen, GraduationCap, Sparkles, Target, Award, Check, ChevronRight, ChevronLeft } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import type { MagicLinkUser } from '../lib/supabase';
+import { useState } from 'react';
+import { BookOpen, GraduationCap, Sparkles, Target, Award, Check, ChevronRight, ChevronLeft, AlertCircle, Lock } from 'lucide-react';
+import { supabase, type MagicLinkUser } from '../lib/supabase';
 
 type SurveyQuestion = {
   id: number;
@@ -14,262 +13,139 @@ const SURVEY_QUESTIONS: SurveyQuestion[] = [
   {
     id: 1,
     title: 'Which Industries interest you the most?',
-    options: [
-      'Agriculture',
-      'Art',
-      'Business',
-      'Communication',
-      'Education',
-      'Law',
-      'Engineering',
-      'Finance',
-      'Government',
-      'Media',
-      'Science',
-      'Technology',
-    ],
+    options: ['Agriculture', 'Art', 'Business', 'Communication', 'Education', 'Law', 'Engineering', 'Finance', 'Government', 'Media', 'Science', 'Technology'],
     maxSelections: 3,
   },
   {
     id: 2,
     title: 'What challenges do you face?',
-    options: [
-      'Resources',
-      'Workload',
-      'Time',
-      'Career Path',
-      'Subject',
-      'Support',
-    ],
+    options: ['Resources', 'Workload', 'Time', 'Career Path', 'Subject', 'Support'],
     maxSelections: 3,
   },
   {
     id: 3,
     title: 'How do you prefer to learn?',
-    options: [
-      'Online resources',
-      'Mentorship',
-      'Group Study',
-      'After School Classes',
-      'Online Courses',
-    ],
+    options: ['Online resources', 'Mentorship', 'Group Study', 'After School Classes', 'Online Courses'],
     maxSelections: 3,
   },
   {
     id: 4,
     title: 'What is your race?',
-    options: [
-      'Black',
-      'Coloured',
-      'White',
-      'Indian',
-      'Asian',
-      'Multiracial',
-      'Prefer not to say',
-    ],
+    options: ['Black', 'Coloured', 'White', 'Indian', 'Asian', 'Multiracial', 'Prefer not to say'],
     maxSelections: 1,
   },
   {
     id: 5,
     title: 'What is your gender?',
-    options: [
-      'Male',
-      'Female',
-    ],
+    options: ['Male', 'Female'],
     maxSelections: 1,
   },
   {
     id: 6,
     title: 'What are your hobbies? (select up to 3)',
-    options: [
-      'Reading',
-      'Sports',
-      'Gaming',
-      'Music',
-      'Traveling',
-      'Arts',
-      'Cooking',
-      'Technology',
-      'Content Creation',
-      'Debate',
-      'Wildlife',
-      'Social Causes',
-      'Events',
-      'Other',
-    ],
+    options: ['Reading', 'Sports', 'Gaming', 'Music', 'Traveling', 'Arts', 'Cooking', 'Technology', 'Content Creation', 'Debate', 'Wildlife', 'Social Causes', 'Events', 'Other'],
     maxSelections: 3,
   },
   {
     id: 7,
     title: 'What is your age group?',
-    options: [
-      'Under 18',
-      '18-24',
-      '25-34',
-      '35-44',
-      '45-54',
-      '55-64',
-      '65+',
-      'Prefer not to say',
-    ],
+    options: ['Under 18', '18-24', '25-34', '35-44', '45-54', '55-64', '65+', 'Prefer not to say'],
     maxSelections: 1,
   },
   {
     id: 8,
     title: 'What is your highest level of education?',
-    options: [
-      'No formal education',
-      'Primary school',
-      'High school',
-      'Vocational training',
-      'Bachelor\'s degree',
-      'Master\'s degree',
-      'Doctorate',
-      'Prefer not to say',
-    ],
+    options: ['No formal education', 'Primary school', 'High school', 'Vocational training', "Bachelor's degree", "Master's degree", 'Doctorate', 'Prefer not to say'],
     maxSelections: 1,
   },
   {
     id: 9,
     title: 'What is your employment status?',
-    options: [
-      'Employed full-time',
-      'Employed part-time',
-      'Self-employed',
-      'Unemployed',
-      'Student',
-      'Retired',
-      'Homemaker',
-      'Prefer not to say',
-    ],
+    options: ['Employed full-time', 'Employed part-time', 'Self-employed', 'Unemployed', 'Student', 'Retired', 'Homemaker', 'Prefer not to say'],
     maxSelections: 1,
   },
   {
     id: 10,
     title: 'What is your relationship status?',
-    options: [
-      'Single',
-      'In a relationship',
-      'Married',
-      'Divorced',
-      'Widowed',
-      'Prefer not to say',
-    ],
-    maxSelections: 1,
-  },
-  {
-    id: 11,
-    title: 'Where do you live? (city/town)',
-    options: [
-      'Prefer not to say',
-      // This will be a text input; but we'll treat as single select with "Other" option that triggers input.
-      // For simplicity, we'll keep as option but later can be extended.
-    ],
+    options: ['Single', 'In a relationship', 'Married', 'Divorced', 'Widowed', 'Prefer not to say'],
     maxSelections: 1,
   },
 ];
 
 export default function WelcomePage() {
   const [user, setUser] = useState<MagicLinkUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [tokenInput, setTokenInput] = useState('');
+  const [isValidating, setIsValidating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [surveyStep, setSurveyStep] = useState<number>(0); // 0 = welcome, 1-3 = questions, 4 = completed
-  const [token, setToken] = useState<string | null>(null);
+  const [surveyStep, setSurveyStep] = useState<number>(0);
   const [selections, setSelections] = useState<Record<number, string[]>>({
-    1: [],
-    2: [],
-    3: [],
-    4: [],
-    5: [],
-    6: [],
-    7: [],
-    8: [],
-    9: [],
-    10: [],
-    11: [],
+    1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [], 10: [],
   });
 
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlToken = urlParams.get('token');
+  const validateToken = async (token: string) => {
+    setIsValidating(true);
+    setError(null);
 
-    // Temporary bypass: if no token, set a mock user for development
-    if (!urlToken) {
-      const mockUser: MagicLinkUser = {
-        id: 'mock-user-id-123',
-        email: 'demo@example.com',
-        is_active: true,
-        magic_token: 'mock-token',
-        activated_at: new Date().toISOString(),
-        first_access_at: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      setUser(mockUser);
-      setToken('mock-token');
-      setLoading(false);
-      return;
-    }
-
-    setToken(urlToken);
-    fetchUser(urlToken);
-  }, []);
-
-  const fetchUser = async (token: string) => {
     try {
-      console.log('Fetching user with token:', token);
-      console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
-
-      const { data, error } = await supabase
+      const { data, error: dbError } = await supabase
         .from('magic_link_users')
         .select('*')
-        .eq('magic_token', token)
+        .eq('magic_token', token.trim())
         .eq('is_active', true)
         .maybeSingle();
 
-      if (error) {
-        console.error('Supabase error:', error);
-        throw error;
+      if (dbError) {
+        throw dbError;
       }
 
       if (!data) {
-        setError('Invalid or inactive magic link');
-        setLoading(false);
+        setError('Invalid or inactive token. Please check your token and try again.');
+        setIsValidating(false);
         return;
       }
 
+      // Update first access time if this is the first time
       if (!data.first_access_at) {
-        await supabase
+        const { error: updateError } = await supabase
           .from('magic_link_users')
           .update({ first_access_at: new Date().toISOString() })
           .eq('id', data.id);
+        if (updateError) {
+          console.warn('Failed to update first_access_at:', updateError);
+          // Continue anyway - this is non-critical
+        }
       }
 
       setUser(data);
-      setLoading(false);
+      setError(null);
     } catch (err) {
-      console.error('Error fetching user:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load welcome page');
-      setLoading(false);
+      console.error('Token validation error:', err);
+      setError('Failed to validate token. Please try again.');
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  const handleTokenSubmit = () => {
+    if (tokenInput.trim()) {
+      validateToken(tokenInput.trim());
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleTokenSubmit();
     }
   };
 
   const submitSurvey = async () => {
-    // Placeholder for backend submission - token is now available
-    if (!token) {
-      console.warn('No token available for survey submission');
-      return;
-    }
-    console.log('Submitting survey with token:', token);
+    if (!user?.magic_token) return;
+    console.log('Submitting survey with token:', user.magic_token);
     console.log('Selections:', selections);
-    // TODO: Send selections and token to backend
-    // Example: await supabase.from('survey_responses').insert({ token, selections, user_id: user?.id });
-    // The token can be used for authentication or to associate responses with the user.
+    // TODO: Send to backend
   };
 
-  const handleStart = () => {
-    setSurveyStep(1);
-  };
+  const handleStart = () => setSurveyStep(1);
 
   const handleOptionToggle = (questionId: number, option: string) => {
     const current = selections[questionId] || [];
@@ -278,21 +154,12 @@ export default function WelcomePage() {
     let updated: string[];
 
     if (maxSelections === 1) {
-      // Single‑select: replace or toggle off
-      if (isSelected) {
-        updated = []; // deselect
-      } else {
-        updated = [option]; // select this one (replace any previous)
-      }
+      updated = isSelected ? [] : [option];
     } else {
-      // Multi‑select with limit
       if (isSelected) {
         updated = current.filter((item) => item !== option);
       } else {
-        if (current.length >= maxSelections) {
-          // Limit reached, ignore
-          return;
-        }
+        if (current.length >= maxSelections) return;
         updated = [...current, option];
       }
     }
@@ -304,9 +171,8 @@ export default function WelcomePage() {
     if (surveyStep < SURVEY_QUESTIONS.length) {
       setSurveyStep(surveyStep + 1);
     } else {
-      // Submit survey
       submitSurvey();
-      setSurveyStep(SURVEY_QUESTIONS.length + 1); // completion
+      setSurveyStep(SURVEY_QUESTIONS.length + 1);
     }
   };
 
@@ -314,35 +180,92 @@ export default function WelcomePage() {
     if (surveyStep > 1) {
       setSurveyStep(surveyStep - 1);
     } else {
-      setSurveyStep(0); // back to welcome
+      setSurveyStep(0);
     }
   };
 
   const handleSkip = () => {
-    // Skip survey and go to completion
     setSurveyStep(SURVEY_QUESTIONS.length + 1);
   };
 
-  if (loading) {
+  // Token Entry Screen
+  if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent"></div>
-          <p className="mt-4 text-lg text-gray-600">Loading your learning portal...</p>
-        </div>
-      </div>
-    );
-  }
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
+        <FloatingElements />
+        <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
+          <div className="max-w-md w-full">
+            <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl p-8 md:p-10">
+              <div className="flex items-center justify-center mb-6">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full blur-2xl opacity-20 animate-pulse"></div>
+                  <Lock className="w-16 h-16 text-indigo-600 relative z-10" strokeWidth={1.5} />
+                </div>
+              </div>
 
-  if (error || !user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Target className="w-8 h-8 text-red-600" />
+              <h1 className="text-3xl md:text-4xl font-bold text-center mb-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                Welcome Back
+              </h1>
+              <p className="text-gray-600 text-center mb-8">
+                Enter your access token to continue your personalized learning journey
+              </p>
+
+              <div className="space-y-6">
+                <div>
+                  <label htmlFor="token" className="block text-sm font-medium text-gray-700 mb-2">
+                    Access Token
+                  </label>
+                  <input
+                    type="text"
+                    id="token"
+                    value={tokenInput}
+                    onChange={(e) => setTokenInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Enter your magic link token"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all duration-300 font-mono text-sm"
+                    disabled={isValidating}
+                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    You should have received this token via email
+                  </p>
+                </div>
+
+                {error && (
+                  <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-xl">
+                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-red-800">{error}</p>
+                  </div>
+                )}
+
+                <button
+                  onClick={handleTokenSubmit}
+                  disabled={!tokenInput.trim() || isValidating}
+                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-4 rounded-xl text-lg font-semibold shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-3"
+                >
+                  {isValidating ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                      <span>Validating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Access Learning Portal</span>
+                      <ChevronRight className="w-5 h-5" />
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <p className="text-sm text-gray-600 text-center">
+                  Don't have a token?{' '}
+                  <a href="mailto:support@example.com" className="text-indigo-600 hover:text-indigo-800 font-medium">
+                    Contact Support
+                  </a>
+                </p>
+              </div>
+            </div>
           </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Access Denied</h2>
-          <p className="text-gray-600">{error || 'Unable to access this page'}</p>
         </div>
       </div>
     );
@@ -383,7 +306,7 @@ export default function WelcomePage() {
                 {question.title}
               </h2>
               <p className="text-center text-gray-600 mb-10">
-                Choose up to {question.maxSelections} options
+                Choose up to {question.maxSelections} option{question.maxSelections > 1 ? 's' : ''}
                 {maxReached && <span className="ml-2 text-green-600 font-semibold">(Max reached)</span>}
               </p>
 
@@ -447,7 +370,7 @@ export default function WelcomePage() {
                 Your preferences have been saved. We'll tailor your learning journey based on your choices.
               </p>
               <button
-                onClick={() => window.location.reload()} // or navigate to dashboard
+                onClick={() => window.location.reload()}
                 className="group relative inline-flex items-center gap-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-12 py-5 rounded-full text-xl font-semibold shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
               >
                 <span className="relative">Go to Dashboard</span>
@@ -460,26 +383,25 @@ export default function WelcomePage() {
     );
   }
 
-  // Welcome screen (surveyStep === 0)
+  // Welcome screen
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
       <FloatingElements />
-
       <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
         <div className="max-w-4xl w-full">
-          <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl p-8 md:p-12 transform hover:scale-[1.01] transition-transform duration-300">
-            <div className="flex items-center justify-center mb-8 animate-fade-in">
+          <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl p-8 md:p-12">
+            <div className="flex items-center justify-center mb-8">
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full blur-2xl opacity-20 animate-pulse"></div>
                 <GraduationCap className="w-20 h-20 text-indigo-600 relative z-10" strokeWidth={1.5} />
               </div>
             </div>
 
-            <h1 className="text-5xl md:text-6xl font-bold text-center mb-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent animate-fade-in-up">
-              Hello {user.email?.split('@')[0] || user.id.slice(0, 8)}
+            <h1 className="text-5xl md:text-6xl font-bold text-center mb-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              Hello {user.email?.split('@')[0] || 'Learner'}
             </h1>
 
-            <p className="text-xl text-gray-600 text-center mb-12 animate-fade-in-up animation-delay-200">
+            <p className="text-xl text-gray-600 text-center mb-12">
               Welcome to your personalized learning journey
             </p>
 
@@ -504,30 +426,10 @@ export default function WelcomePage() {
               />
             </div>
 
-            <div className="text-center animate-fade-in-up animation-delay-300">
-              <p className="text-gray-700 mb-6 max-w-2xl mx-auto">
+            <div className="text-center">
+              <p className="text-gray-700 mb-8 max-w-2xl mx-auto">
                 To customize your experience, we'll ask you a few quick questions about your interests and learning preferences.
               </p>
-              <div className="mb-8 max-w-md mx-auto">
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                  <p className="text-sm font-medium text-blue-800 mb-2">Your access token:</p>
-                  <div className="flex items-center justify-between">
-                    <code className="text-blue-900 bg-blue-100 px-3 py-2 rounded-lg font-mono text-sm truncate flex-1 mr-4">
-                      {token || 'No token available'}
-                    </code>
-                    <button
-                      onClick={() => navigator.clipboard.writeText(token || '')}
-                      disabled={!token}
-                      className="text-blue-600 hover:text-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed text-sm font-medium"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                  <p className="text-xs text-blue-600 mt-2">
-                    This token will be used to personalize your survey and fetch your data from the backend.
-                  </p>
-                </div>
-              </div>
               <button
                 onClick={handleStart}
                 className="group relative flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-12 py-5 rounded-full text-xl font-semibold shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300 overflow-hidden mx-auto"
@@ -552,7 +454,7 @@ function FeatureCard({ icon, title, description, delay }: {
 }) {
   return (
     <div
-      className="bg-gradient-to-br from-white to-blue-50 rounded-2xl p-6 shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 animate-fade-in-up"
+      className="bg-gradient-to-br from-white to-blue-50 rounded-2xl p-6 shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2"
       style={{ animationDelay: `${delay}ms` }}
     >
       <div className="w-14 h-14 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-xl flex items-center justify-center mb-4 text-indigo-600">
@@ -567,15 +469,14 @@ function FeatureCard({ icon, title, description, delay }: {
 function FloatingElements() {
   return (
     <>
-      <div className="absolute top-20 left-10 w-20 h-20 bg-blue-300/30 rounded-full blur-xl animate-float"></div>
-      <div className="absolute top-40 right-20 w-32 h-32 bg-indigo-300/30 rounded-full blur-xl animate-float animation-delay-1000"></div>
-      <div className="absolute bottom-32 left-1/4 w-24 h-24 bg-purple-300/30 rounded-full blur-xl animate-float animation-delay-2000"></div>
-      <div className="absolute bottom-20 right-1/3 w-28 h-28 bg-blue-400/30 rounded-full blur-xl animate-float animation-delay-1500"></div>
-
-      <div className="absolute top-1/4 right-10 opacity-10 animate-drift">
+      <div className="absolute top-20 left-10 w-20 h-20 bg-blue-300/30 rounded-full blur-xl animate-pulse"></div>
+      <div className="absolute top-40 right-20 w-32 h-32 bg-indigo-300/30 rounded-full blur-xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+      <div className="absolute bottom-32 left-1/4 w-24 h-24 bg-purple-300/30 rounded-full blur-xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+      <div className="absolute bottom-20 right-1/3 w-28 h-28 bg-blue-400/30 rounded-full blur-xl animate-pulse" style={{ animationDelay: '1.5s' }}></div>
+      <div className="absolute top-1/4 right-10 opacity-10">
         <BookOpen className="w-32 h-32 text-blue-600" />
       </div>
-      <div className="absolute bottom-1/4 left-10 opacity-10 animate-drift animation-delay-2000">
+      <div className="absolute bottom-1/4 left-10 opacity-10">
         <GraduationCap className="w-40 h-40 text-indigo-600" />
       </div>
     </>
